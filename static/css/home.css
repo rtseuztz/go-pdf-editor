@@ -1,3 +1,13 @@
 body {
     color: lightgreen;
 }
+.container input {
+    color: #3131FF;
+    width: 20%;
+    cursor: pointer;
+}
+.container .textLayer,
+.container .textLayer > span,
+.container .textLayer > br {
+    position: absolute;
+}

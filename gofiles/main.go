@@ -87,6 +87,11 @@ func Start(cfg Config) *HTMLServer {
 	router.HandleFunc("/", pages.HomeHandler).Methods("GET")
 	router.HandleFunc("/", redir).Methods("POST")
 	router.HandleFunc("/summoner/{name}", pages.SummonerHandler)
+	router.HandleFunc("/noTextPDF", pages.PostPDF).Methods("POST")
+	router.HandleFunc("/noTextPDF", pages.GetPDF).Methods("GET")
+	router.HandleFunc("/login", pages.Login)
+
+	pages.SetUpFirebase()
 	//router.HandleFunc("/second", SecondHandler)
 	//router.HandleFunc("/third/{number}", ThirdHandler)
 

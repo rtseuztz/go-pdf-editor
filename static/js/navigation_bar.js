@@ -10,5 +10,4 @@ searchUser = () => {
         if (summonerName.trim().length > 0) {
             window.location.href = "/summoner/" + summonerName;
         }
-    
 }
