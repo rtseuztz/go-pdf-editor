@@ -1,12 +1,15 @@
-
 // Loaded via <script> tag, create shortcut to access PDF.js exports.
-var pdfjsLib = window['pdfjs-dist/build/pdf'];
-
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
+const pdfLib = window['PDFLib']
+var textObj = [];
+var stylesObj = {};
+var emptyPDFBytes = [];
 // The workerSrc property shall be specified.
 pdfjsLib.GlobalWorkerOptions.workerSrc = '//mozilla.github.io/pdf.js/build/pdf.worker.js';
 const $fileEle = $(".container #file_input")
-const $formEle = $(".container form");
+const $textEle = $(".container .textLayer");
 $fileEle.on("change", async () => {
+	resetCanvas();
     const fileEle = $fileEle[0];
     const file = fileEle.files[0];
     console.log(file);
@@ -21,7 +24,7 @@ $fileEle.on("change", async () => {
     var formData = new FormData();
 	formData.append('file', file)
 	formData.append("b", "C");
-    renderPdf(buff);
+    await renderPdf(buff, true);
 	//console.log("data is " + data);
      const response = await fetch('/noTextPDF', {
 		method: "POST",
@@ -29,42 +32,20 @@ $fileEle.on("change", async () => {
 	});
 	const blob = await response.blob();
     console.log(`resp is ${blob}`)
-	renderPdf(await blob.arrayBuffer())
-    // $.get({
-    //     url: "/noTextPDF",
-    //     type: "POST",
-    //     data: formData,
-    //     processData: false,
-    //     contentType: false,
-    //     success: function(res) {
-    //         //render these pdf bytes
-    //         //const noTextBuff = res
-    //         console.log(res);
-    //     },
-    //     error: function(erR) {
-    //         console.log("erR");
-    //     }
-    // })
-    
+	emptyPDFBytes = await blob.arrayBuffer()
+	await renderPdf(emptyPDFBytes)
 
-
-    // const response = await fetch('http://localhost:3001/removeText', {body: formData});
-    // console.log("Response is " + response);
-    // const res = await response.json();
-    // console.log("res is "+ res);
-    //pdfReader.renderPdf(res);
 })
-// $formEle.on("submit", async (data) => {
-// 	console.log("data is " + data)
-// })
-function renderPdf(buff) {
+
+async function renderPdf(buff, showText) {
 	var pdfDoc = null,
 	pageNum = 1,
 	pageRendering = false,
 	pageNumPending = null,
-	scale = 1,
+	scale =3,
 	canvas = document.getElementById('canvas'),
 	ctx = canvas.getContext('2d');
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	const loadingTask = pdfjsLib.getDocument({data: buff});
 	loadingTask.promise.then(function(pdf) {
 			// Fetch the first page
@@ -94,8 +75,11 @@ function renderPdf(buff) {
 		}).then(function(textContent) {
 
 			// Assign CSS to the textLayer element
-			var textLayer = document.querySelector(".textLayer");
-
+			var textLayer = $textEle[0]
+			if (showText) {
+				textObj = textContent.items;
+				stylesObj = textContent.styles;
+			}
 			textLayer.style.left = canvas.offsetLeft + 'px';
 			textLayer.style.top = canvas.offsetTop + 'px';
 			textLayer.style.height = canvas.offsetHeight + 'px';
@@ -108,11 +92,81 @@ function renderPdf(buff) {
 				viewport: viewport,
 				textDivs: []
 			});
+			return new Promise(res => {
+				return "ok";
+			})
 		});
 	});
 	}, function(reason) {
 			console.error(reason);
+			return new Promise(res => {
+				return "ok";
+			})
 	})
 		//return [];
 }
 
+const $downloadBtn = $('.container #download_btn');
+$downloadBtn.on("click", async () => {
+	const bytes = await downloadPdf(emptyPDFBytes);
+	saveByteArray("newpdf", bytes);
+})
+function base64ToArrayBuffer(base64) {
+    var binaryString = window.atob(base64);
+    var binaryLen = binaryString.length;
+    var bytes = new Uint8Array(binaryLen);
+    for (var i = 0; i < binaryLen; i++) {
+       var ascii = binaryString.charCodeAt(i);
+       bytes[i] = ascii;
+    }
+    return bytes;
+ }
+ function saveByteArray(reportName, byte) {
+    var blob = new Blob([byte], {type: "application/pdf"});
+    var link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    var fileName = reportName;
+    link.download = fileName;
+    link.click();
+};
+/**
+ * 
+ * @param {ArrayBuffer} buff 
+ * @returns Array of pdf bytes
+ */
+async function downloadPdf(buff) {
+
+	const pdfDoc = await pdfLib.PDFDocument.load(buff)
+	const firstPage = pdfDoc.getPages()[0];
+	const {width, height} = firstPage.getSize();
+	const helveticaFont = await pdfDoc.embedFont(pdfLib.StandardFonts.Helvetica)
+	_.each(textObj, textEle => {
+		firstPage.drawText(textEle.str, {
+			x: textEle.transform[4],
+			y: textEle.transform[5],
+			size: textEle.transform[0],
+			font: helveticaFont,
+			color: pdfLib.rgb(0, 0, 0),
+		})
+	})
+	const newBytes = await pdfDoc.save();
+	return newBytes;
+		// const loadingTask = pdfjsLib.getDocument({data: buff});
+	// loadingTask.promise.then(function(pdf) {
+	// 	const page = pdf.getPage(0).then( (page) => {
+	// 		_.each(textObj, textEle => {
+	// 			firstPage.drawText(textEle.str, {
+	// 				x: textEle.transform[4],
+	// 				y: textEle.transform[5],
+	// 				size: textEle.transform[0],
+	// 				font: 12,
+	// 				color: rgb(0, 0, 0),
+		
+	// 			})
+	// 		})
+	// 	})
+	// })
+}
+function resetCanvas() {
+	$textEle.html("");
+}
