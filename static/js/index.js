@@ -6,8 +6,10 @@ var stylesObj = {};
 var emptyPDFBytes = [];
 // The workerSrc property shall be specified.
 pdfjsLib.GlobalWorkerOptions.workerSrc = '//mozilla.github.io/pdf.js/build/pdf.worker.js';
-const $fileEle = $(".container #file_input")
-const $textEle = $(".container .textLayer");
+const $container = $(".container")
+const $fileEle = $container.find("#file_input")
+const $textEle = $container.find(".textLayer");
+const $pdfLayer = $container.find("#pdf_layer");
 $fileEle.on("change", async () => {
 	resetCanvas();
     const fileEle = $fileEle[0];
@@ -42,68 +44,62 @@ async function renderPdf(buff, showText) {
 	pageNum = 1,
 	pageRendering = false,
 	pageNumPending = null,
-	scale =3,
+	scale = 1,
 	canvas = document.getElementById('canvas'),
 	ctx = canvas.getContext('2d');
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	if (showText) {
+		$pdfLayer.addClass("hidden");
+	}
 	const loadingTask = pdfjsLib.getDocument({data: buff});
-	loadingTask.promise.then(function(pdf) {
+	const pdf = await loadingTask.promise;
 			// Fetch the first page
-		const page = pdf.getPage(pageNum).then( (page) => {
+	const page = await pdf.getPage(pageNum)
 
-			var viewport = page.getViewport({scale: scale});
-			canvas.height = viewport.height;
-			canvas.width = viewport.width;
+	var viewport = page.getViewport({scale: scale});
+	canvas.height = viewport.height;
+	canvas.width = viewport.width;
 
-		// Render PDF page into canvas context
-		var renderContext = {
-			canvasContext: ctx,
-			viewport: viewport
-		};
-		var renderTask = page.render(renderContext);
-		// Wait for rendering to finish
-		renderTask.promise.then(function() {
-			pageRendering = false;
-			if (pageNumPending !== null) {
-				// New page rendering is pending
-				pdfjsLib.renderPage(pageNumPending);
-				pageNumPending = null;
-			}
-		}).then(function() {
-			// Returns a promise, on resolving it will return text contents of the page
-			return page.getTextContent();
-		}).then(function(textContent) {
+	// Render PDF page into canvas context
+	var renderContext = {
+		canvasContext: ctx,
+		viewport: viewport
+	};
+	var renderTask = page.render(renderContext);
+	// Wait for rendering to finish
+	await renderTask.promise
+	pageRendering = false;
+	if (pageNumPending !== null) {
+		// New page rendering is pending
+		pdfjsLib.renderPage(pageNumPending);
+		pageNumPending = null;
+	}
+	// Returns a promise, on resolving it will return text contents of the page
+	const textContent = await page.getTextContent();
 
-			// Assign CSS to the textLayer element
-			var textLayer = $textEle[0]
-			if (showText) {
-				textObj = textContent.items;
-				stylesObj = textContent.styles;
-			}
-			textLayer.style.left = canvas.offsetLeft + 'px';
-			textLayer.style.top = canvas.offsetTop + 'px';
-			textLayer.style.height = canvas.offsetHeight + 'px';
-			textLayer.style.width = canvas.offsetWidth + 'px';
+	// Assign CSS to the textLayer element
+	var textLayer = $textEle[0]
+	if (showText) {
+		textObj = textContent.items;
+		stylesObj = textContent.styles;
+	}
+	textLayer.style.left = canvas.offsetLeft + 'px';
+	textLayer.style.top = canvas.offsetTop + 'px';
+	textLayer.style.height = canvas.offsetHeight + 'px';
+	textLayer.style.width = canvas.offsetWidth + 'px';
 
-			// Pass the data to the method for rendering of text over the pdf canvas.
-			pdfjsLib.renderTextLayer({
-				textContent: textContent,
-				container: textLayer,
-				viewport: viewport,
-				textDivs: []
-			});
-			return new Promise(res => {
-				return "ok";
-			})
-		});
-	});
+	// Pass the data to the method for rendering of text over the pdf canvas.
+	pdfjsLib.renderTextLayer({
+		textContent: textContent,
+		container: textLayer,
+		viewport: viewport,
+		textDivs: []
 	}, function(reason) {
 			console.error(reason);
-			return new Promise(res => {
-				return "ok";
-			})
 	})
-		//return [];
+	if (!showText) {
+		$pdfLayer.removeClass("hidden");
+	}
 }
 
 const $downloadBtn = $('.container #download_btn');

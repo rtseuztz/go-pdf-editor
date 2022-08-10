@@ -1,11 +1,17 @@
 .navbar {
-    background-color: darkorchid !important;
-    color: cornflowerblue;
+    background-color: rgb(53, 53, 53);
+    color: white;
+    width: 100%;
 }
-body {
-    background-image: url(../images/leaguebackground.png);
-    background-color: purple;
-    background-blend-mode: color-burn;
-    background-size: cover;
-    background-attachment: fixed;
+
+.navbar input {
+    background-color: white;
+    color: black;
+    border: 2px solid #555555;
+  }
+
+.navbar input {
+    background-color: #555555;
+    color: white;
+    cursor: pointer;
 }
